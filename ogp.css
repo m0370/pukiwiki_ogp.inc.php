@@ -36,10 +36,6 @@ display:-webkit-box;
 -webkit-line-clamp:2;
 max-height:3.4em;
 }
-.ogp-description.ogpi {
--webkit-line-clamp:3;
-max-height:4.5em;
-}
 .ogp-url {
 line-height:1.5em;
 font-size:.8rem;
