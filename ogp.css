@@ -56,8 +56,8 @@ height:100px;
 margin:0 0 0 10px;
 }
 .ogp-img {
-// width:100px; lazyloadする場合はサイズを指定するほうがCLSは改善する
-// height:100px;  
+width:100px;
+height:100px;  
 object-fit:cover;
 object-position:50% 0;
 }
