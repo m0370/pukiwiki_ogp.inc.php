@@ -1,0 +1,67 @@
+.ogp {
+position:relative;
+z-index:1;
+word-wrap:break-word;
+word-break:break-all;
+border:1px solid rgba(0,0,0,.1);
+border-radius:4px;
+padding:8px;
+margin:0 8px 20px;
+overflow:hidden;
+min-height:100px;
+max-height:140px;
+max-width:650px;
+}
+.ogp-title {
+font-weight:700;
+margin:1px 0 2px;
+line-height:1.4em;
+color:#000;
+overflow:hidden;
+display:-webkit-box;
+-webkit-box-orient:vertical;
+-webkit-line-clamp:2;
+max-height:2.7em;
+}
+.ogp a {
+color:#000;
+}
+.ogp-description {
+color:#666;
+font-size:.8rem;
+line-height:1.5em;
+overflow:hidden;
+display:-webkit-box;
+-webkit-box-orient:vertical;
+-webkit-line-clamp:2;
+max-height:3.4em;
+}
+.ogp-description.ogpi {
+-webkit-line-clamp:3;
+max-height:4.5em;
+}
+.ogp-url {
+line-height:1.5em;
+font-size:.8rem;
+color:#66b;
+overflow:hidden;
+text-overflow:ellipsis;
+white-space:nowrap;
+padding-top:2px;
+}
+.ogp-img-box.ogp-noimg {
+display:none;
+}
+.ogp-img-box {
+position:relative;
+float:right;
+width:100px;
+height:100px;
+margin:0 0 0 10px;
+}
+.ogp-img {
+// width:100px; lazyloadする場合はサイズを指定するほうがCLSは改善する
+// height:100px;  
+object-fit:cover;
+object-position:50% 0;
+}
