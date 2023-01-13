@@ -2,7 +2,7 @@
 はてなブログの「ブログカード」は魅力的でPukiwikiにも導入したいと思い、自分で見よう見まねでプラグインを作成して個人用のPukiwikiで利用していましたが、せっかくですのでこの外部のOGPを取得してブログカードとして表示するPukiwikiプラグインを公開することにしました。
 
 詳しくはこちらのサイトもご覧ください。
-https://oncologynote.com/?12173bf026
+https://oncologynote.jp/?12173bf026
 
 - Pukiwiki 1.5.3および1.5.4RC、PHP 7.4およびPHP 8.0で動作確認しています。
 - プラグイン本体はGPL v3です。
@@ -22,13 +22,13 @@ https://oncologynote.com/?12173bf026
 
 ## 変更履歴
 
-### ver1.0（2019.9.10）[ ](https://oncologynote.com/?12173bf026#j047861e)
+### ver1.0（2019.9.10）[ ](https://oncologynote.jp/?12173bf026#j047861e)
 
 ひとまずOGPを取得して表示する機能を実装しました。
 
 ~~現状ではPukiwikiにアクセスがあるたびに参照先サイトのOGPを取得しに行っている。アクセス数がそれほど多くない場合は負荷も無視できる程度であるが、もしアクセス数が非常に多いPukiwikiの場合はいちいち参照先にデータを取得しにゆくのは効率が悪い。何らかの方法でOGPデータや画像をキャッシュすることができればと思うが、現状では荷が重い（PHP技術的に）。~~
 
-### ver1.1（2019.9.17）[ ](https://oncologynote.com/?12173bf026#z7aaf86d)
+### ver1.1（2019.9.17）[ ](https://oncologynote.jp/?12173bf026#z7aaf86d)
 
 キャッシュ機能を実装しました。CACHE.DIRのogpというサブフォルダにキャッシュを配置します。またキャッシュ機能を実装したことでHTTPS外へのリンクを張った際に「安全でないサイト」と表示される問題も初回キャッシュ作成時以降は表示されなくなり、（ほぼ）解決しました。
 
@@ -36,30 +36,30 @@ https://oncologynote.com/?12173bf026
 
 また、URLを省略したOGPを提供するサイト（NCBI Pubmedなど）へのリンクを貼れるようにしました。
 
-### ver1.2（2019.11.10）[ ](https://oncologynote.com/?12173bf026#w45f8d9b)
+### ver1.2（2019.11.10）[ ](https://oncologynote.jp/?12173bf026#w45f8d9b)
 
 第2引数にampを入れることでimgタグをamp-imgに変更できるようにしました（ver1.5から再びAMP非対応になっています）。
 
 AMP対応したサイトの場合はimgタグを使用することができません。そのためOGPプラグインが書き出すタグもimgではなくamp-imgタグを使用するようにしています。これにともなってスタイルシートも若干複雑になります。ver1.2対応のスタイルシートを使用してください。
 
-### ver1.3 (2020.5.2)[ ](https://oncologynote.com/?12173bf026#sff2b6b0)
+### ver1.3 (2020.5.2)[ ](https://oncologynote.jp/?12173bf026#sff2b6b0)
 
 ファイル形式（GIF・PNGなど）を反映したキャッシュファイル拡張子になるようにしました。従来のキャッシュも利用できます。なお、ファイル形式を取得するために[getimagesize()](https://www.php.net/manual/ja/book.image.php)を使用しているため、PHPでGDがサポートされている必要があります。お使いのサーバーのPHPの設定をご確認ください。
 
-### ver1.31 (2020.5.5)[ ](https://oncologynote.com/?12173bf026#td4248ba)
+### ver1.31 (2020.5.5)[ ](https://oncologynote.jp/?12173bf026#td4248ba)
 
 キャッシュ関連のバグを修正。
 
-### ver1.4 (2020.7.16)[ ](https://oncologynote.com/?12173bf026#aaf5e258)
+### ver1.4 (2020.7.16)[ ](https://oncologynote.jp/?12173bf026#aaf5e258)
 
 画像が存在しない場合に画像を非表示（noimg）とするよう対応しました。[こちらのサイト](https://jpngamerswiki.com/?6d9c96fe42)も参考にさせていただきました。ありがとうございました。画像がない場合や画像ファイルのサイズが'0'の場合はnoimgとなります。
 
-### ver1.5 (2020.7.24)[ ](https://oncologynote.com/?12173bf026#sc41672a)
+### ver1.5 (2020.7.24)[ ](https://oncologynote.jp/?12173bf026#sc41672a)
 
 - WEBP画像があればWEBP画像を表示しなければfallbackするのに対応しました。
 - 複数の引数に対応(noimg,prefetch)しました。
 
-### ver1.6 (2021.11.26)[ ](https://oncologynote.com/?12173bf026#nfff5d5b)
+### ver1.6 (2021.11.26)[ ](https://oncologynote.jp/?12173bf026#nfff5d5b)
 
 - PHP 8.0でエラーが出ないよう微修正
 - このバージョンからGitHubに公開しました。
