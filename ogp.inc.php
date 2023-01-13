@@ -26,8 +26,14 @@
 // ver 1.6 (2021.12.23)
 // PHP8.0でエラーが出ないよう微修正
 
+// ver 1.7 (2023.01.13)
+// 無限ループにならないようにUser Agentでの読み込み防止を実装
+
 // WEBPファイルがあるときWEBP表示を試みる fallback
 define('PLUGIN_OGP_WEBP_FALLBACK', TRUE); // TRUE, FALSE
+
+// 画像サイズ
+$ogpsize = '100';
 
 /////////////////////////////////////////////////
 
@@ -44,6 +50,7 @@ function plugin_ogp_convert()
 	if(PLUGIN_OGP_WEBP_FALLBACK) {
 	$webpcache = CACHE_DIR . 'ogp/' . $ogpurlmd . '.webp'; //webp対応
 	}
+	$browser = $_SERVER['HTTP_USER_AGENT'];
 	
 	if(file_exists($pngcache)) { $imgcache = $pngcache ; }
 	else if(file_exists($gifcache)) { $imgcache = $gifcache ; }
@@ -54,7 +61,7 @@ function plugin_ogp_convert()
 		$title = $ogpcache['title'];
 		$description = $ogpcache['description'];
 		$src = $imgcache ;
-	} else {
+	} else if($browser !== 'Google Bot') {
 	    require_once(PLUGIN_DIR.'opengraph.php');
 	    $graph = OpenGraph::fetch($args[0]);
 	    if ($graph) {
@@ -107,7 +114,7 @@ function plugin_ogp_convert()
 				} //どの拡張子でもない場合、ダミーjpgファイルを作る
 			}
 		} else return '#ogp Error: Page not found.';
-	}
+	} else return false;
 
 	if($is_noimg != TRUE){
 		$is_noimg = (in_array('noimg', $args) || ( file_exists($imgcache) && filesize($imgcache) <= 1 ));
