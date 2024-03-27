@@ -4,36 +4,21 @@
 // author: m0370
 // Twitter: @m0370
 
-// ver1.0 (2019.9.10)
-// ひとまずOGPを取得して表示する機能を実装しました。
-
-// ver1.1 (2019.9.17)
-// Cache機能を実装しました。CACHE.DIRのogpというサブフォルダにキャッシュを配置します。
-
-// ver1.2 (2020.5.1)
-// 第2引数をスタイルシートとして引用
-
-// ver1.3 (2020.5.2)
-// ファイル形式（GIF・PNGなど）を反映したキャッシュファイル名になるようにしました。従来のキャッシュも利用できます。
-
-// ver 1.4 (2020.7.16)
-// HTMLパース,noimg対応
-// OGP画像がjpg拡張子になっていても中身がwebPやgzipの場合に画像が表示できない問題がある
-
-// ver 1.5 (2021.6.14)
-// キャッシュをJSON形式で保存するように変更
-
-// ver 1.6 (2021.12.23)
-// PHP8.0でエラーが出ないよう微修正
-
-// ver 1.7 (2023.01.13)
-// 無限ループにならないようにUser Agentでの読み込み防止を実装
+// ver1.0 (2019.9.10) OGPを取得して表示する機能を実装。
+// ver1.1 (2019.9.17) Cache機能を実装。CACHE.DIRのogpというサブフォルダにキャッシュを配置。
+// ver1.2 (2020.5.1) 第2引数をスタイルシートとして引用
+// ver1.3 (2020.5.2) ファイル形式（GIF・PNGなど）を反映したキャッシュファイル名になるようにしました。従来のキャッシュも利用できます。
+// ver 1.4 (2020.7.16) HTMLパース,noimg対応
+// ver 1.5 (2021.6.14) キャッシュをJSON形式で保存するように変更
+// ver 1.6 (2021.12.23) PHP8.0対応
+// ver 1.7 (2023.01.13) 無限ループにならないようにUser Agentでの読み込み防止を実装
+// ver 1.8 (2024.03.27) バグ修正
 
 // WEBPファイルがあるときWEBP表示を試みる fallback
 define('PLUGIN_OGP_WEBP_FALLBACK', TRUE); // TRUE, FALSE
 
 // 画像サイズ
-$ogpsize = '100';
+define('PLUGIN_OGP_SIZE', 100); // TRUE, FALSE
 
 /////////////////////////////////////////////////
 
@@ -41,6 +26,7 @@ function plugin_ogp_convert()
 {
 	$args = func_get_args();
 	$uri = get_script_uri();
+	$ogpsize = PLUGIN_OGP_SIZE;
 	$ogpurl = (explode('://', $args[0]));
 	$ogpurlmd = md5($ogpurl[1]);
 	$datcache = CACHE_DIR . 'ogp/' . $ogpurlmd . '.txt';
@@ -127,7 +113,7 @@ function plugin_ogp_convert()
 
 //WEBP表示のfallback
 	if ( PLUGIN_OGP_WEBP_FALLBACK && file_exists($webpcache)) {
-		$fallback1 = '<picture><source type="image/webp" data-srcset="' . $webpcache . '"/>';
+		$fallback1 = '<picture><source type="image/webp" srcset="' . $webpcache . '"/>';
 		$fallback2 = '</picture>';
 	} else {
 		$fallback1 = '';
@@ -136,12 +122,11 @@ function plugin_ogp_convert()
 
 return <<<EOD
 <div class="ogp">
-<div class="ogp-img-box $noimgclass">$fallback1<img class="ogp-img" src="$src" alt="$title" width="100" height="100">$fallback2</div>
+<div class="ogp-img-box $noimgclass">$fallback1<img class="ogp-img" src="$src" loading="lazy" alt="$title" width="$ogpsize" height="$ogpsize">$fallback2</div>
 <div class="ogp-title"><a href="$args[0]" target=”_blank” rel="noreferrer">$title<span class="overlink"></span></a></div>
 <div class="ogp-description">$description</div>
 <div class="ogp-url">$args[0]</div>
 </div>
 EOD;
 }
-
 ?>
