@@ -40,7 +40,12 @@ class OpenGraph implements Iterator
    * Holds all the Open Graph values we've parsed from a page
    *
    */
-	private $_values = array();
+       private $_values = array();
+
+       /**
+        * Default User Agent for HTTP requests
+        */
+       private static $USER_AGENT = 'Mozilla/5.0 (compatible; OpenGraphPHP/1.0)';
 
   /**
    * Fetches a URI and parses it for Open Graph data, returns
@@ -49,16 +54,22 @@ class OpenGraph implements Iterator
    * @param $URI    URI to page to parse for Open Graph data
    * @return OpenGraph
    */
-	static public function fetch($URI) {
+       static public function fetch($URI) {
+               $ch = curl_init($URI);
+               curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+               curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+               curl_setopt($ch, CURLOPT_USERAGENT, self::$USER_AGENT);
+               curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 
-		$response = file_get_contents($URI);
+               $response = curl_exec($ch);
+               curl_close($ch);
 
-        if (!empty($response)) {
-            return self::_parse($response);
-        } else {
-            return false;
-        }
-	}
+               if (!empty($response)) {
+                       return self::_parse($response, $URI);
+               } else {
+                       return false;
+               }
+       }
 
   /**
    * Parses HTML and extracts Open Graph data, this assumes
@@ -67,13 +78,22 @@ class OpenGraph implements Iterator
    * @param $HTML    HTML to parse
    * @return OpenGraph
    */
-	static private function _parse($HTML) {
-		$old_libxml_error = libxml_use_internal_errors(true);
+       static private function _parse($HTML, $URL = '') {
+               $old_libxml_error = libxml_use_internal_errors(true);
 
-		$doc = new DOMDocument();
-		$doc->loadHTML($HTML);
-		
-		libxml_use_internal_errors($old_libxml_error);
+               $doc = new DOMDocument();
+               @$doc->loadHTML($HTML);
+
+               libxml_use_internal_errors($old_libxml_error);
+
+               $base = $URL;
+               $bases = $doc->getElementsByTagName('base');
+               if ($bases->length > 0) {
+                       $href = $bases->item(0)->getAttribute('href');
+                       if ($href) {
+                               $base = $href;
+                       }
+               }
 
 		$tags = $doc->getElementsByTagName('meta');
 		if (!$tags || $tags->length === 0) {
@@ -84,25 +104,42 @@ class OpenGraph implements Iterator
 
 		$nonOgDescription = null;
 		
-		foreach ($tags AS $tag) {
-			if ($tag->hasAttribute('property') &&
-			    strpos($tag->getAttribute('property'), 'og:') === 0) {
-				$key = strtr(substr($tag->getAttribute('property'), 3), '-', '_');
-				$page->_values[$key] = $tag->getAttribute('content');
-			}
-			
-			//Added this if loop to retrieve description values from sites like the New York Times who have malformed it. 
-			if ($tag ->hasAttribute('value') && $tag->hasAttribute('property') &&
-			    strpos($tag->getAttribute('property'), 'og:') === 0) {
-				$key = strtr(substr($tag->getAttribute('property'), 3), '-', '_');
-				$page->_values[$key] = $tag->getAttribute('value');
-			}
-			//Based on modifications at https://github.com/bashofmann/opengraph/blob/master/src/OpenGraph/OpenGraph.php
-			if ($tag->hasAttribute('name') && $tag->getAttribute('name') === 'description') {
-                $nonOgDescription = $tag->getAttribute('content');
-            }
-			
-		}
+               foreach ($tags AS $tag) {
+                       $prop = '';
+                       if ($tag->hasAttribute('property')) {
+                               $prop = $tag->getAttribute('property');
+                       } elseif ($tag->hasAttribute('name')) {
+                               $prop = $tag->getAttribute('name');
+                       }
+
+                       $content = null;
+                       if ($tag->hasAttribute('content')) {
+                               $content = $tag->getAttribute('content');
+                       } elseif ($tag->hasAttribute('value')) {
+                               $content = $tag->getAttribute('value');
+                       }
+
+                       if (!$prop || $content === null) continue;
+
+                       if (strpos($prop, 'og:') === 0) {
+                               $key = strtr(substr($prop, 3), '-', '_');
+                               if (strpos($key, 'image') === 0) {
+                                       $content = self::resolveUrl($content, $base);
+                               }
+                               $page->_values[$key] = $content;
+                       } elseif (strpos($prop, 'twitter:') === 0) {
+                               $tkey = substr($prop, 8);
+                               $map = array('title' => 'title', 'description' => 'description', 'image' => 'image', 'url' => 'url');
+                               if (isset($map[$tkey]) && !isset($page->_values[$map[$tkey]])) {
+                                       if ($map[$tkey] === 'image') {
+                                               $content = self::resolveUrl($content, $base);
+                                       }
+                                       $page->_values[$map[$tkey]] = $content;
+                               }
+                       } elseif ($prop === 'description') {
+                               $nonOgDescription = $content;
+                       }
+               }
 		//Based on modifications at https://github.com/bashofmann/opengraph/blob/master/src/OpenGraph/OpenGraph.php
 		if (!isset($page->_values['title'])) {
             $titles = $doc->getElementsByTagName('title');
@@ -122,16 +159,38 @@ class OpenGraph implements Iterator
             if ($elements->length > 0) {
                 $domattr = $elements->item(0)->attributes->getNamedItem('href');
                 if ($domattr) {
-                    $page->_values['image'] = $domattr->value;
-                    $page->_values['image_src'] = $domattr->value;
+                    $abs = self::resolveUrl($domattr->value, $base);
+                    $page->_values['image'] = $abs;
+                    $page->_values['image_src'] = $abs;
                 }
             }
         }
 
-		if (empty($page->_values)) { return false; }
-		
-		return $page;
-	}
+               if (empty($page->_values)) { return false; }
+
+               return $page;
+       }
+
+       /**
+        * Convert relative URLs to absolute using base URL
+        */
+       static private function resolveUrl($url, $base) {
+               if (empty($url)) return $url;
+               if (preg_match('~^https?://~i', $url) || strpos($url, '//') === 0) {
+                       return $url;
+               }
+
+               // handle root relative
+               if (strpos($url, '/') === 0) {
+                       $parts = parse_url($base);
+                       return $parts['scheme'].'://'.$parts['host'].$url;
+               }
+
+               $parts = parse_url($base);
+               $path = isset($parts['path']) ? $parts['path'] : '/';
+               $dir = preg_replace('#/[^/]*$#', '/', $path);
+               return $parts['scheme'].'://'.$parts['host'].$dir.$url;
+       }
 
   /**
    * Helper method to access attributes directly
@@ -193,10 +252,15 @@ class OpenGraph implements Iterator
   /**
    * Iterator code
    */
-	private $_position = 0;
-	public function rewind() { reset($this->_values); $this->_position = 0; }
-	public function current() { return current($this->_values); }
-	public function key() { return key($this->_values); }
-	public function next() { next($this->_values); ++$this->_position; }
-	public function valid() { return $this->_position < sizeof($this->_values); }
+       private $_position = 0;
+       #[\ReturnTypeWillChange]
+       public function rewind() { reset($this->_values); $this->_position = 0; }
+       #[\ReturnTypeWillChange]
+       public function current() { return current($this->_values); }
+       #[\ReturnTypeWillChange]
+       public function key() { return key($this->_values); }
+       #[\ReturnTypeWillChange]
+       public function next() { next($this->_values); ++$this->_position; }
+       #[\ReturnTypeWillChange]
+       public function valid() { return $this->_position < sizeof($this->_values); }
 }
