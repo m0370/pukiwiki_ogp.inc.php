@@ -13,6 +13,7 @@
 // ver 1.6 (2021.12.23) PHP8.0対応
 // ver 1.7 (2023.01.13) 無限ループにならないようにUser Agentでの読み込み防止を実装
 // ver 1.8 (2024.03.27) バグ修正
+// ver 1.9 (2025.7.19) 機能改善
 
 // WEBPファイルがあるときWEBP表示を試みる fallback
 define('PLUGIN_OGP_WEBP_FALLBACK', TRUE); // TRUE, FALSE
