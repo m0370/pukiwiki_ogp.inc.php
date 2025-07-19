@@ -24,9 +24,9 @@ define('PLUGIN_OGP_SIZE', 100); // TRUE, FALSE
 
 function plugin_ogp_convert()
 {
-	$args = func_get_args();
-	$uri = get_script_uri();
-	$ogpsize = PLUGIN_OGP_SIZE;
+       $args = func_get_args();
+       $ogpsize = PLUGIN_OGP_SIZE;
+       $is_noimg = false;
 	$ogpurl = (explode('://', $args[0]));
 	$ogpurlmd = md5($ogpurl[1]);
 	$datcache = CACHE_DIR . 'ogp/' . $ogpurlmd . '.txt';
@@ -51,23 +51,14 @@ function plugin_ogp_convert()
 	    require_once(PLUGIN_DIR.'opengraph.php');
 	    $graph = OpenGraph::fetch($args[0]);
 	    if ($graph) {
-	        $title = $graph->title;
-	        $url = $graph->url;
-	        $description = $graph->description;
+                $title = $graph->title;
+                $description = $graph->description;
 	        if( isset($graph->{'image:secure_url'}) ){
 			 	$src = $graph->{'image:secure_url'};
 			} else {
 				$src = $graph->image;
 			}
-			if( substr($src, 0, 2) === '//'){$src = 'https:' . $src;}
-		    $title_check = utf8_decode($title);
-		    $description_check = utf8_decode($description);
-		    if(mb_detect_encoding($title_check) == 'UTF-8'){
-		        $title = $title_check; // 文字化け解消
-		    }
-		    if(mb_detect_encoding($description_check) == 'UTF-8'){
-		        $description = $description_check; // 文字化け解消
-		    }
+                       if( substr($src, 0, 2) === '//'){$src = 'https:' . $src;}
 		    
 		    $detects = array('ASCII','EUC-JP','SJIS','JIS','CP51932','UTF-16','ISO-8859-1');
 		    
@@ -84,10 +75,9 @@ function plugin_ogp_convert()
 
 			if(file_exists($imgcache)) {
 				$src = $imgcache ;
-			} else if($src == '') {
-				$is_noimg = TRUE ;
-				$imgfile = touch('imgfile.jpg');
-				file_put_contents($jpgcache, $imgfile) ;
+                        } else if($src == '') {
+                                $is_noimg = true;
+                                touch($jpgcache);
 			} else {
 				$imgfile = file_get_contents($src);
 				$filetype = exif_imagetype($src);
@@ -102,14 +92,15 @@ function plugin_ogp_convert()
 		} else return '#ogp Error: Page not found.';
 	} else return false;
 
-	if($is_noimg != TRUE){
-		$is_noimg = (in_array('noimg', $args) || ( file_exists($imgcache) && filesize($imgcache) <= 1 ));
-	}
+       if (!$is_noimg) {
+               $is_noimg = (in_array('noimg', $args) || ( file_exists($imgcache) && filesize($imgcache) <= 1 ));
+       }
 	if($is_noimg) {$noimgclass = "ogp-noimg" ;}
 
 //XSS回避
-	$description = htmlspecialchars($description);
-	$args[0] = htmlspecialchars($args[0]);
+        $description = htmlspecialchars($description);
+        $title = htmlspecialchars($title);
+        $args[0] = htmlspecialchars($args[0]);
 
 //WEBP表示のfallback
 	if ( PLUGIN_OGP_WEBP_FALLBACK && file_exists($webpcache)) {
@@ -123,7 +114,7 @@ function plugin_ogp_convert()
 return <<<EOD
 <div class="ogp">
 <div class="ogp-img-box $noimgclass">$fallback1<img class="ogp-img" src="$src" loading="lazy" alt="$title" width="$ogpsize" height="$ogpsize">$fallback2</div>
-<div class="ogp-title"><a href="$args[0]" target=”_blank” rel="noreferrer">$title<span class="overlink"></span></a></div>
+<div class="ogp-title"><a href="$args[0]" target="_blank" rel="noreferrer">$title<span class="overlink"></span></a></div>
 <div class="ogp-description">$description</div>
 <div class="ogp-url">$args[0]</div>
 </div>

@@ -45,6 +45,7 @@ class OpenGraph implements Iterator
        /**
         * Default User Agent for HTTP requests
         */
+
        private static $USER_AGENT = 'Mozilla/5.0 (compatible; OpenGraphPHP/1.0)';
 
   /**
@@ -78,22 +79,22 @@ class OpenGraph implements Iterator
    * @param $HTML    HTML to parse
    * @return OpenGraph
    */
-       static private function _parse($HTML, $URL = '') {
-               $old_libxml_error = libxml_use_internal_errors(true);
+	static private function _parse($HTML, $URL = '') {
+		$old_libxml_error = libxml_use_internal_errors(true);
 
-               $doc = new DOMDocument();
-               @$doc->loadHTML($HTML);
+		$doc = new DOMDocument();
+		@$doc->loadHTML($HTML);
 
-               libxml_use_internal_errors($old_libxml_error);
+		libxml_use_internal_errors($old_libxml_error);
 
-               $base = $URL;
-               $bases = $doc->getElementsByTagName('base');
-               if ($bases->length > 0) {
-                       $href = $bases->item(0)->getAttribute('href');
-                       if ($href) {
-                               $base = $href;
-                       }
-               }
+		$base = $URL;
+		$bases = $doc->getElementsByTagName('base');
+		if ($bases->length > 0) {
+			$href = $bases->item(0)->getAttribute('href');
+			if ($href) {
+			        $base = $href;
+			}
+		}
 
 		$tags = $doc->getElementsByTagName('meta');
 		if (!$tags || $tags->length === 0) {
@@ -104,40 +105,40 @@ class OpenGraph implements Iterator
 
 		$nonOgDescription = null;
 		
-               foreach ($tags AS $tag) {
-                       $prop = '';
-                       if ($tag->hasAttribute('property')) {
-                               $prop = $tag->getAttribute('property');
-                       } elseif ($tag->hasAttribute('name')) {
-                               $prop = $tag->getAttribute('name');
-                       }
+		foreach ($tags AS $tag) {
+			$prop = '';
+			if ($tag->hasAttribute('property')) {
+			        $prop = $tag->getAttribute('property');
+			} elseif ($tag->hasAttribute('name')) {
+			        $prop = $tag->getAttribute('name');
+			}
 
-                       $content = null;
-                       if ($tag->hasAttribute('content')) {
-                               $content = $tag->getAttribute('content');
-                       } elseif ($tag->hasAttribute('value')) {
-                               $content = $tag->getAttribute('value');
-                       }
+			$content = null;
+			if ($tag->hasAttribute('content')) {
+			        $content = $tag->getAttribute('content');
+			} elseif ($tag->hasAttribute('value')) {
+			        $content = $tag->getAttribute('value');
+			}
 
-                       if (!$prop || $content === null) continue;
+			if (!$prop || $content === null) continue;
 
-                       if (strpos($prop, 'og:') === 0) {
-                               $key = strtr(substr($prop, 3), '-', '_');
-                               if (strpos($key, 'image') === 0) {
-                                       $content = self::resolveUrl($content, $base);
-                               }
-                               $page->_values[$key] = $content;
-                       } elseif (strpos($prop, 'twitter:') === 0) {
-                               $tkey = substr($prop, 8);
-                               $map = array('title' => 'title', 'description' => 'description', 'image' => 'image', 'url' => 'url');
-                               if (isset($map[$tkey]) && !isset($page->_values[$map[$tkey]])) {
-                                       if ($map[$tkey] === 'image') {
-                                               $content = self::resolveUrl($content, $base);
-                                       }
-                                       $page->_values[$map[$tkey]] = $content;
-                               }
-                       } elseif ($prop === 'description') {
-                               $nonOgDescription = $content;
+			if (strpos($prop, 'og:') === 0) {
+			        $key = strtr(substr($prop, 3), '-', '_');
+			        if (strpos($key, 'image') === 0) {
+			                $content = self::resolveUrl($content, $base);
+			        }
+			        $page->_values[$key] = $content;
+			} elseif (strpos($prop, 'twitter:') === 0) {
+			        $tkey = substr($prop, 8);
+			        $map = array('title' => 'title', 'description' => 'description', 'image' => 'image', 'url' => 'url');
+			        if (isset($map[$tkey]) && !isset($page->_values[$map[$tkey]])) {
+			                if ($map[$tkey] === 'image') {
+			                        $content = self::resolveUrl($content, $base);
+			                }
+			                $page->_values[$map[$tkey]] = $content;
+			        }
+			} elseif ($prop === 'description') {
+			        $nonOgDescription = $content;
                        }
                }
 		//Based on modifications at https://github.com/bashofmann/opengraph/blob/master/src/OpenGraph/OpenGraph.php
