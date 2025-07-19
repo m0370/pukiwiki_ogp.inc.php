@@ -45,7 +45,8 @@ class OpenGraph implements Iterator
        /**
         * Default User Agent for HTTP requests
         */
-	private static $USER_AGENT = 'Mozilla/5.0 (compatible; OpenGraphPHP/1.0)';
+
+       private static $USER_AGENT = 'Mozilla/5.0 (compatible; OpenGraphPHP/1.0)';
 
   /**
    * Fetches a URI and parses it for Open Graph data, returns
@@ -54,22 +55,22 @@ class OpenGraph implements Iterator
    * @param $URI    URI to page to parse for Open Graph data
    * @return OpenGraph
    */
-	static public function fetch($URI) {
-		$ch = curl_init($URI);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-		curl_setopt($ch, CURLOPT_USERAGENT, self::$USER_AGENT);
-		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+       static public function fetch($URI) {
+               $ch = curl_init($URI);
+               curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+               curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+               curl_setopt($ch, CURLOPT_USERAGENT, self::$USER_AGENT);
+               curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 
-		$response = curl_exec($ch);
-		curl_close($ch);
+               $response = curl_exec($ch);
+               curl_close($ch);
 
-		if (!empty($response)) {
-			return self::_parse($response, $URI);
-		} else {
-			return false;
-		}
-	}
+               if (!empty($response)) {
+                       return self::_parse($response, $URI);
+               } else {
+                       return false;
+               }
+       }
 
   /**
    * Parses HTML and extracts Open Graph data, this assumes
