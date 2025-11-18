@@ -29,8 +29,10 @@ function plugin_ogp_convert()
 	$ogpsize = PLUGIN_OGP_SIZE;
 	$is_noimg = false;
 	$noimgclass = '';
-	$ogpurl = (explode('://', $args[0]));
-	$ogpurlmd = md5($ogpurl[1]);
+	$ogpurlmd = plugin_ogp_build_cache_key($args[0]);
+	if($ogpurlmd === null) {
+		return '#ogp Error: Invalid URL.';
+	}
 	$cache_prefix = CACHE_DIR . 'ogp/' . $ogpurlmd;
 	$datcache = $cache_prefix . '.txt';
 	$gifcache = $cache_prefix . '.gif';
@@ -182,6 +184,47 @@ function plugin_ogp_select_existing_cache($paths)
 		}
 	}
 	return null;
+}
+
+function plugin_ogp_build_cache_key($url)
+{
+	if(!is_string($url)) {
+		return null;
+	}
+	$url = trim($url);
+	if($url === '') {
+		return null;
+	}
+	$parsed = @parse_url($url);
+	if($parsed === false) {
+		return md5($url);
+	}
+	$key = '';
+	if(isset($parsed['host'])) {
+		$key .= strtolower($parsed['host']);
+		if(isset($parsed['port'])) {
+			$key .= ':' . $parsed['port'];
+		}
+	}
+	if(isset($parsed['path'])) {
+		$key .= $parsed['path'];
+	}
+	if(isset($parsed['query'])) {
+		$key .= '?' . $parsed['query'];
+	}
+	if(isset($parsed['fragment'])) {
+		$key .= '#' . $parsed['fragment'];
+	}
+	if($key === '') {
+		if(isset($parsed['scheme'])) {
+			$key = $parsed['scheme'];
+		} else if(isset($parsed['path'])) {
+			$key = $parsed['path'];
+		} else {
+			$key = $url;
+		}
+	}
+	return md5($key);
 }
 
 function plugin_ogp_image_from_string($binary)
