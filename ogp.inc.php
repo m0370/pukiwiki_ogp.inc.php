@@ -21,6 +21,9 @@ define('PLUGIN_OGP_WEBP_FALLBACK', TRUE); // TRUE, FALSE
 // 画像サイズ
 define('PLUGIN_OGP_SIZE', 100); // TRUE, FALSE
 
+// OGP取得時のHTTP User Agentを任意の文字列に差し替えたい場合はここに指定
+define('PLUGIN_OGP_HTTP_USER_AGENT', '');
+
 /////////////////////////////////////////////////
 
 function plugin_ogp_convert()
@@ -50,9 +53,12 @@ function plugin_ogp_convert()
 		$description = $ogpcache['description'];
 		$src = $existing_imgcache;
 		plugin_ogp_try_create_webp_from_cache($existing_imgcache, $webpcache);
-	} else if($browser !== 'Google Bot') {
-		require_once(PLUGIN_DIR.'opengraph.php');
-		$graph = OpenGraph::fetch($args[0]);
+        } else if($browser !== 'Google Bot') {
+                require_once(PLUGIN_DIR.'opengraph.php');
+                if(defined('PLUGIN_OGP_HTTP_USER_AGENT') && PLUGIN_OGP_HTTP_USER_AGENT !== '') {
+                        OpenGraph::setUserAgent(PLUGIN_OGP_HTTP_USER_AGENT);
+                }
+                $graph = OpenGraph::fetch($args[0]);
 		if ($graph) {
 			$title = $graph->title;
 			$description = $graph->description;
