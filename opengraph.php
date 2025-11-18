@@ -46,7 +46,13 @@ class OpenGraph implements Iterator
         * Default User Agent for HTTP requests
         */
 
-       private static $USER_AGENT = 'Mozilla/5.0 (compatible; OpenGraphPHP/1.0)';
+	private static $USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+	private static $REQUEST_HEADERS = array(
+		'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+		'Accept-Language: en-US,en;q=0.9,ja;q=0.8'
+	);
+	private static $CONNECT_TIMEOUT = 5;
+	private static $TIMEOUT = 10;
 
   /**
    * Fetches a URI and parses it for Open Graph data, returns
@@ -55,22 +61,33 @@ class OpenGraph implements Iterator
    * @param $URI    URI to page to parse for Open Graph data
    * @return OpenGraph
    */
-       static public function fetch($URI) {
-               $ch = curl_init($URI);
-               curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-               curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-               curl_setopt($ch, CURLOPT_USERAGENT, self::$USER_AGENT);
-               curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+	static public function fetch($URI) {
+		$ch = curl_init($URI);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+		curl_setopt($ch, CURLOPT_USERAGENT, self::$USER_AGENT);
+		curl_setopt($ch, CURLOPT_TIMEOUT, self::$TIMEOUT);
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, self::$CONNECT_TIMEOUT);
+		curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+		curl_setopt($ch, CURLOPT_ENCODING, '');
+		curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, self::buildRequestHeaders());
 
-               $response = curl_exec($ch);
-               curl_close($ch);
+		$response = curl_exec($ch);
+		$errno = curl_errno($ch);
+		$http_code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		$content_type = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+		curl_close($ch);
 
-               if (!empty($response)) {
-                       return self::_parse($response, $URI);
-               } else {
-                       return false;
-               }
-       }
+		if ($errno !== 0 || $http_code >= 400 || empty($response)) {
+			return false;
+		}
+		if (!self::isHtmlContentType($content_type)) {
+			return false;
+		}
+
+		return self::_parse($response, $URI);
+	}
 
   /**
    * Parses HTML and extracts Open Graph data, this assumes
@@ -108,39 +125,51 @@ class OpenGraph implements Iterator
 		foreach ($tags AS $tag) {
 			$prop = '';
 			if ($tag->hasAttribute('property')) {
-			        $prop = $tag->getAttribute('property');
+				$prop = strtolower($tag->getAttribute('property'));
 			} elseif ($tag->hasAttribute('name')) {
-			        $prop = $tag->getAttribute('name');
+				$prop = strtolower($tag->getAttribute('name'));
 			}
 
 			$content = null;
 			if ($tag->hasAttribute('content')) {
-			        $content = $tag->getAttribute('content');
+				$content = $tag->getAttribute('content');
 			} elseif ($tag->hasAttribute('value')) {
-			        $content = $tag->getAttribute('value');
+				$content = $tag->getAttribute('value');
 			}
 
 			if (!$prop || $content === null) continue;
 
 			if (strpos($prop, 'og:') === 0) {
-			        $key = strtr(substr($prop, 3), '-', '_');
-			        if (strpos($key, 'image') === 0) {
-			                $content = self::resolveUrl($content, $base);
-			        }
-			        $page->_values[$key] = $content;
+				$key = strtr(substr($prop, 3), '-', '_');
+				if (strpos($key, 'image') === 0) {
+					$content = self::resolveUrl($content, $base, $URL);
+				}
+				if (!array_key_exists($key, $page->_values)) {
+					$page->_values[$key] = $content;
+				}
+				if (($key === 'image:secure_url' || $key === 'image:url' || $key === 'image_secure_url' || $key === 'image_url') && !isset($page->_values['image'])) {
+					$page->_values['image'] = $content;
+				}
 			} elseif (strpos($prop, 'twitter:') === 0) {
-			        $tkey = substr($prop, 8);
-			        $map = array('title' => 'title', 'description' => 'description', 'image' => 'image', 'url' => 'url');
-			        if (isset($map[$tkey]) && !isset($page->_values[$map[$tkey]])) {
-			                if ($map[$tkey] === 'image') {
-			                        $content = self::resolveUrl($content, $base);
-			                }
-			                $page->_values[$map[$tkey]] = $content;
-			        }
+				$tkey = substr($prop, 8);
+				$map = array(
+					'title' => 'title',
+					'description' => 'description',
+					'image' => 'image',
+					'image:src' => 'image',
+					'image:url' => 'image',
+					'url' => 'url'
+				);
+				if (isset($map[$tkey]) && !isset($page->_values[$map[$tkey]])) {
+					if ($map[$tkey] === 'image') {
+						$content = self::resolveUrl($content, $base, $URL);
+					}
+					$page->_values[$map[$tkey]] = $content;
+				}
 			} elseif ($prop === 'description') {
-			        $nonOgDescription = $content;
-                       }
-               }
+				$nonOgDescription = $content;
+			}
+		}
 		//Based on modifications at https://github.com/bashofmann/opengraph/blob/master/src/OpenGraph/OpenGraph.php
 		if (!isset($page->_values['title'])) {
             $titles = $doc->getElementsByTagName('title');
@@ -152,20 +181,31 @@ class OpenGraph implements Iterator
             $page->_values['description'] = $nonOgDescription;
         }
 
-        //Fallback to use image_src if ogp::image isn't set.
-        if (!isset($page->_values['image'])) {
-            $domxpath = new DOMXPath($doc);
-            $elements = $domxpath->query("//link[@rel='image_src']");
+	//Fallback to use image_src if ogp::image isn't set.
+	if (!isset($page->_values['image'])) {
+		$domxpath = new DOMXPath($doc);
+		$elements = $domxpath->query("//link[@rel='image_src']");
 
-            if ($elements->length > 0) {
-                $domattr = $elements->item(0)->attributes->getNamedItem('href');
-                if ($domattr) {
-                    $abs = self::resolveUrl($domattr->value, $base);
-                    $page->_values['image'] = $abs;
-                    $page->_values['image_src'] = $abs;
-                }
-            }
-        }
+		if ($elements->length > 0) {
+			$domattr = $elements->item(0)->attributes->getNamedItem('href');
+			if ($domattr) {
+				$abs = self::resolveUrl($domattr->value, $base, $URL);
+				$page->_values['image'] = $abs;
+				$page->_values['image_src'] = $abs;
+			}
+		}
+	}
+
+	if (!isset($page->_values['url'])) {
+		$domxpath = new DOMXPath($doc);
+		$canon = $domxpath->query("//link[@rel='canonical']");
+		if ($canon->length > 0) {
+			$href = $canon->item(0)->attributes->getNamedItem('href');
+			if ($href) {
+				$page->_values['url'] = self::resolveUrl($href->value, $base, $URL);
+			}
+		}
+	}
 
                if (empty($page->_values)) { return false; }
 
@@ -175,23 +215,97 @@ class OpenGraph implements Iterator
        /**
         * Convert relative URLs to absolute using base URL
         */
-       static private function resolveUrl($url, $base) {
-               if (empty($url)) return $url;
-               if (preg_match('~^https?://~i', $url) || strpos($url, '//') === 0) {
-                       return $url;
-               }
+	static private function resolveUrl($url, $base, $documentUrl = '') {
+		if (empty($url)) return $url;
+		if (preg_match('~^[a-z][a-z0-9+.-]*://~i', $url)) {
+			return $url;
+		}
+		if (strpos($url, '//') === 0) {
+			$scheme = self::extractScheme($base);
+			if (!$scheme) {
+				$scheme = self::extractScheme($documentUrl, 'https');
+			}
+			return $scheme.':'.$url;
+		}
 
-               // handle root relative
-               if (strpos($url, '/') === 0) {
-                       $parts = parse_url($base);
-                       return $parts['scheme'].'://'.$parts['host'].$url;
-               }
+		$normalizedBase = self::normalizeBase($base, $documentUrl);
+		if ($normalizedBase === null) {
+			return $url;
+		}
+		$parts = parse_url($normalizedBase);
+		if (!$parts || !isset($parts['host'])) {
+			return $url;
+		}
+		$scheme = isset($parts['scheme']) ? $parts['scheme'] : self::extractScheme($documentUrl, 'https');
+		$port = isset($parts['port']) ? ':'.$parts['port'] : '';
 
-               $parts = parse_url($base);
-               $path = isset($parts['path']) ? $parts['path'] : '/';
-               $dir = preg_replace('#/[^/]*$#', '/', $path);
-               return $parts['scheme'].'://'.$parts['host'].$dir.$url;
-       }
+		if (strpos($url, '/') === 0) {
+			return $scheme.'://'.$parts['host'].$port.$url;
+		}
+
+		$path = isset($parts['path']) ? $parts['path'] : '/';
+		$dir = preg_replace('#/[^/]*$#', '/', $path);
+		return $scheme.'://'.$parts['host'].$port.$dir.$url;
+	}
+
+	static private function normalizeBase($base, $documentUrl) {
+		if (empty($base)) {
+			return $documentUrl ?: null;
+		}
+		if (preg_match('~^[a-z][a-z0-9+.-]*://~i', $base)) {
+			return $base;
+		}
+		if (strpos($base, '//') === 0) {
+			$scheme = self::extractScheme($documentUrl, 'https');
+			return $scheme.':'.$base;
+		}
+		if ($documentUrl === '') {
+			return null;
+		}
+		$docParts = parse_url($documentUrl);
+		if (!$docParts || !isset($docParts['host'])) {
+			return null;
+		}
+		$scheme = isset($docParts['scheme']) ? $docParts['scheme'] : 'https';
+		$port = isset($docParts['port']) ? ':'.$docParts['port'] : '';
+		if (strpos($base, '/') === 0) {
+			return $scheme.'://'.$docParts['host'].$port.$base;
+		}
+		$docPath = isset($docParts['path']) ? preg_replace('#/[^/]*$#', '/', $docParts['path']) : '/';
+		return $scheme.'://'.$docParts['host'].$port.$docPath.$base;
+	}
+
+	static private function extractScheme($url, $default = null) {
+		if (!$url) {
+			return $default;
+		}
+		$parts = parse_url($url);
+		if ($parts && isset($parts['scheme'])) {
+			return $parts['scheme'];
+		}
+		return $default;
+	}
+
+	static private function buildRequestHeaders() {
+		return self::$REQUEST_HEADERS;
+	}
+
+	static private function isHtmlContentType($contentType) {
+		if ($contentType === null || $contentType === false || $contentType === '') {
+			return true;
+		}
+		$contentType = strtolower($contentType);
+		return (strpos($contentType, 'text/html') !== false || strpos($contentType, 'application/xhtml+xml') !== false || strpos($contentType, 'text/plain') !== false);
+	}
+
+	public static function setUserAgent($userAgent) {
+		if (is_string($userAgent)) {
+			$userAgent = trim($userAgent);
+			if ($userAgent !== '') {
+				self::$USER_AGENT = $userAgent;
+			}
+		}
+	}
 
   /**
    * Helper method to access attributes directly
