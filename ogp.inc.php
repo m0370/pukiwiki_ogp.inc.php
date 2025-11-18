@@ -49,6 +49,7 @@ function plugin_ogp_convert()
 		$title = $ogpcache['title'];
 		$description = $ogpcache['description'];
 		$src = $existing_imgcache;
+		plugin_ogp_try_create_webp_from_cache($existing_imgcache, $webpcache);
 	} else if($browser !== 'Google Bot') {
 		require_once(PLUGIN_DIR.'opengraph.php');
 		$graph = OpenGraph::fetch($args[0]);
@@ -225,6 +226,33 @@ function plugin_ogp_build_cache_key($url)
 		}
 	}
 	return md5($key);
+}
+
+function plugin_ogp_try_create_webp_from_cache($source_path, $webpcache)
+{
+	if(!PLUGIN_OGP_WEBP_FALLBACK || $source_path === null || file_exists($webpcache)) {
+		return false;
+	}
+	if(!file_exists($source_path)) {
+		return false;
+	}
+	$binary = @file_get_contents($source_path);
+	if($binary === false) {
+		return false;
+	}
+	$gd_image = plugin_ogp_image_from_string($binary);
+	if(!$gd_image || !function_exists('imagewebp')) {
+		if($gd_image) {
+			imagedestroy($gd_image);
+		}
+		return false;
+	}
+	$result = imagewebp($gd_image, $webpcache, 80);
+	imagedestroy($gd_image);
+	if(!$result && file_exists($webpcache)) {
+		unlink($webpcache);
+	}
+	return $result;
 }
 
 function plugin_ogp_image_from_string($binary)
