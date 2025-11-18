@@ -27,6 +27,8 @@ https://oncologynote.jp/?12173bf026
 
 `ogp.inc.php` の先頭で `PLUGIN_OGP_WEBP_FALLBACK` を `TRUE`（既定値）にしておくと、OGP画像をキャッシュする際に JPEG/PNG/GIF などの元フォーマットと WebP 版の2種類を同時に生成します。ブラウザが WebP に対応していない場合でも `<img>` には従来形式を必ず指定するため、WebP 非対応環境でレイアウトが崩れる心配はありません。WebP に対応したブラウザでは `<picture>` の `<source type="image/webp">` が優先されるため転送量を抑えられます。
 
+過去バージョンで作られた JPEG/PNG/GIF のキャッシュしか存在しない場合でも、プラグインが自動的に WebP 版を追加生成してくれるため、設定を切り替えた直後から WebP fallback の恩恵を受けられます（サーバー側で GD の WebP サポートが有効である必要があります）。
+
 ## 変更履歴
 
 ### ver1.0（2019.9.10）[ ](https://oncologynote.jp/?12173bf026#j047861e)
