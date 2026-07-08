@@ -70,3 +70,15 @@ height:100%;
 text-indent:-999px;
 z-index:0;
 }
+.ogp.ogp-fallback {
+min-height:0;
+padding:6px 8px;
+}
+.ogp.ogp-fallback .ogp-title {
+font-weight:400;
+-webkit-line-clamp:1;
+max-height:1.4em;
+}
+.ogp.ogp-fallback a {
+color:#66b;
+}
